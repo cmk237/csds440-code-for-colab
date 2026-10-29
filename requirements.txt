@@ -2,9 +2,9 @@ git+https://github.com/fra31/auto-attack.git
 matplotlib
 numpy
 pandas
-Pillow==8.2.0
+Pillow
 robustbench==1.1.1
-scipy==1.4.1
+scipy
 torch==1.8.0+cu101
 torchvision==0.9.0+cu101
 tqdm==4.60.0
