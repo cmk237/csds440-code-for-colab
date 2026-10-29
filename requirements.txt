@@ -1,4 +1,4 @@
-autoattack
+git+https://github.com/fra31/auto-attack.git
 matplotlib==3.4.2
 numpy==1.19.5
 pandas==1.2.4
