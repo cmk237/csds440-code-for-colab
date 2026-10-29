@@ -46,7 +46,7 @@ def get_data_info(data_dir):
 
 
 def load_data(data_dir, batch_size=256, batch_size_test=256, num_workers=4, use_augmentation=False, shuffle_train=True, 
-              aux_data_filename=None, unsup_fraction=None, validation=False):
+              aux_data_filename=None, aux_take_amount=None, unsup_fraction=None, validation=False):
     """
     Returns train, test datasets and dataloaders.
     Arguments:
@@ -57,6 +57,7 @@ def load_data(data_dir, batch_size=256, batch_size_test=256, num_workers=4, use_
         use_augmentation (bool): whether to use augmentations for training set.
         shuffle_train (bool): whether to shuffle training set.
         aux_data_filename (str): path to unlabelled data.
+        aux_take_amount (int): number of auxiliary samples to use.
         unsup_fraction (float): fraction of unlabelled data per batch.
         validation (bool): if True, also returns a validation dataloader for unspervised cifar10 (as in Gowal et al, 2020).
     """
@@ -66,7 +67,7 @@ def load_data(data_dir, batch_size=256, batch_size_test=256, num_workers=4, use_
     if validation:
         assert dataset in SEMISUP_DATASETS, 'Only semi-supervised datasets allow a validation set.'
         train_dataset, test_dataset, val_dataset = load_dataset_fn(data_dir=data_dir, use_augmentation=use_augmentation, 
-                                                                   aux_data_filename=aux_data_filename, validation=True)
+                                                                   aux_data_filename=aux_data_filename, aux_take_amount=aux_take_amount, validation=True)
     else:
         train_dataset, test_dataset = load_dataset_fn(data_dir=data_dir, use_augmentation=use_augmentation)
        

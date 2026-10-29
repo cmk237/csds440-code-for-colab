@@ -55,6 +55,13 @@ def parser_train():
                         default='/cluster/scratch/rarade/cifar10s/ti_500K_pseudo_labeled.pickle')
     
     parser.add_argument('--seed', type=int, default=1, help='Random seed.')
+    parser.add_argument(
+    '--aux-take-amount',
+    type=int,
+    default=None,
+    help='Number of auxiliary samples to use.',
+    )
+    
     return parser
 
 
