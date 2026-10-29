@@ -128,7 +128,7 @@ for epoch in range(1, NUM_ADV_EPOCHS+1):
     trainer.save_model(os.path.join(LOG_DIR, 'weights-last.pt'))
     
     logger.log('Time taken: {}'.format(format_time(time.time()-start)))
-    metrics = metrics.append(pd.DataFrame(epoch_metrics, index=[0]), ignore_index=True)
+    metrics = pd.concat([metrics, pd.DataFrame(epoch_metrics, index=[0])], ignore_index=True)
     metrics.to_csv(os.path.join(LOG_DIR, 'stats_adv.csv'), index=False)
 
     

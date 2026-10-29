@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
 import torch.optim as optim
 
 from core.metrics import accuracy
@@ -42,7 +41,7 @@ def trades_loss(model, x_natural, y, optimizer, step_size=0.003, epsilon=0.031, 
     
     elif attack == 'l2-pgd':
         delta = 0.001 * torch.randn(x_natural.shape).cuda().detach()
-        delta = Variable(delta.data, requires_grad=True)
+        delta = delta.detach().requires_grad_(True)
 
         # Setup optimizers
         optimizer_delta = optim.SGD([delta], lr=epsilon / perturb_steps * 2)
@@ -67,12 +66,12 @@ def trades_loss(model, x_natural, y, optimizer, step_size=0.003, epsilon=0.031, 
             delta.data.add_(x_natural)
             delta.data.clamp_(0, 1).sub_(x_natural)
             delta.data.renorm_(p=2, dim=0, maxnorm=epsilon)
-        x_adv = Variable(x_natural + delta, requires_grad=False)
+        x_adv = (x_natural + delta).detach()
     else:
         raise ValueError(f'Attack={attack} not supported for TRADES training!')
     model.train()
 
-    x_adv = Variable(torch.clamp(x_adv, 0.0, 1.0), requires_grad=False)
+    x_adv = torch.clamp(x_adv, 0.0, 1.0).detach()
     
     optimizer.zero_grad()
     # calculate robust loss

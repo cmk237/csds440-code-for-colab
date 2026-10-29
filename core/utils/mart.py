@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
-
 from core.metrics import accuracy
 
 
@@ -31,7 +29,7 @@ def mart_loss(model, x_natural, y, optimizer, step_size=0.007, epsilon=0.031, pe
         raise ValueError(f'Attack={attack} not supported for MART training!')
     model.train()
     
-    x_adv = Variable(torch.clamp(x_adv, 0.0, 1.0), requires_grad=False)
+    x_adv = torch.clamp(x_adv, 0.0, 1.0).detach()
     # zero gradient
     optimizer.zero_grad()
 

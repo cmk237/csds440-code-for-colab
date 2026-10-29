@@ -107,7 +107,7 @@ class WATrainer(Trainer):
             global_step = (epoch - 1) * self.update_steps + update_iter
             ema_update(self.wa_model, self.model, global_step, decay_rate=self.params.tau, 
                        warmup_steps=self.warmup_steps, dynamic_decay=True)
-            metrics = metrics.append(pd.DataFrame(batch_metrics, index=[0]), ignore_index=True)
+            metrics = pd.concat([metrics, pd.DataFrame(batch_metrics, index=[0])], ignore_index=True)
         
         if self.params.scheduler in ['step', 'converge', 'cosine', 'cosinew']:
             self.scheduler.step()

@@ -3,8 +3,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
-
 from torch.distributions import laplace
 from torch.distributions import uniform
 from torch.nn.modules.loss import _Loss
@@ -203,11 +201,11 @@ def CWLoss(output, target, confidence=0):
     CW loss (Marging loss).
     """
     num_classes = output.shape[-1]
-    target = target.data
+    target = target.detach()
     target_onehot = torch.zeros(target.size() + (num_classes,))
     target_onehot = target_onehot.cuda()
     target_onehot.scatter_(1, target.unsqueeze(1), 1.)
-    target_var = Variable(target_onehot, requires_grad=False)
+    target_var = target_onehot
     real = (target_var * output).sum(1)
     other = ((1. - target_var) * output - target_var * 10000.).max(1)[0]
     loss = - torch.clamp(real - other + confidence, min=0.)

@@ -139,7 +139,7 @@ class SemiSupervisedSampler(torch.utils.data.Sampler):
             self.num_batches = num_batches
         else:
             self.num_batches = int(np.ceil(len(self.sup_inds) / self.sup_batch_size))
-        super().__init__(None)
+        super().__init__()
 
     def __iter__(self):
         batch_counter = 0
