@@ -7,4 +7,4 @@ robustbench==1.1.1
 scipy
 torch
 torchvision
-tqdm==4.60.0
+tqdm==4.67
