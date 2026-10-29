@@ -1,4 +1,4 @@
-git+https://github.com/fra31/auto-attack.git
+git+https://github.com/fra31/auto-attack.git@da62301f274b2be0249cd8c9420a5523a87486c1
 matplotlib
 numpy
 pandas
