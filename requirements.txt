@@ -8,3 +8,5 @@ scipy
 torch
 torchvision
 tqdm==4.67
+os
+zipfile

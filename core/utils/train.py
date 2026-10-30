@@ -90,8 +90,14 @@ class Trainer(object):
         elif self.params.scheduler == 'cosine':
             self.scheduler = CosineLR(self.optimizer, max_lr=self.params.lr, epochs=int(num_epochs))
         elif self.params.scheduler == 'cosinew':
-            self.scheduler = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, max_lr=self.params.lr, pct_start=0.025, 
-                                                                 total_steps=int(num_epochs))
+            total_steps = int(num_epochs)
+            pct_start = min(0.5, max(0.025, 2.0 / total_steps))
+            self.scheduler = torch.optim.lr_scheduler.OneCycleLR(
+                self.optimizer,
+                max_lr=self.params.lr,
+                pct_start=pct_start,
+                total_steps=total_steps,
+            )
         else:
             self.scheduler = None
     
