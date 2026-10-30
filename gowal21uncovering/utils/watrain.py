@@ -184,7 +184,8 @@ class WATrainer(Trainer):
         checkpoint = torch.load(path)
         if 'model_state_dict' not in checkpoint:
             raise RuntimeError('Model weights not found at {}.'.format(path))
-        self.wa_model.load_state_dict(checkpoint['model_state_dict'])
+        model = getattr(self, 'wa_model', self.model)
+        model.load_state_dict(checkpoint['model_state_dict'])
     
 
 def ema_update(wa_model, model, global_step, decay_rate=0.995, warmup_steps=0, dynamic_decay=True):
