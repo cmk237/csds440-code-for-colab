@@ -85,6 +85,7 @@ last_lr = args.lr
 if NUM_ADV_EPOCHS > 0:
     logger.log('\n\n')
     metrics = pd.DataFrame()
+    confusion_metrics = []
     logger.log('Standard Accuracy-\tTest: {:2f}%.'.format(trainer.eval(test_dataloader)*100))
     
     old_score = [0.0, 0.0]
@@ -121,6 +122,29 @@ for epoch in range(1, NUM_ADV_EPOCHS+1):
     eval_adv_acc = trainer.eval(eval_dataloader, adversarial=True)
     logger.log('Adversarial Accuracy-\tEval: {:.2f}%.'.format(eval_adv_acc*100))
     epoch_metrics['eval_adversarial_acc'] = eval_adv_acc
+
+    confusion = trainer.eval_adversarial_confusion(test_dataloader)
+    class_names = info['classes']
+    for true_class, row in enumerate(confusion):
+        total = int(row.sum().item())
+        incorrect = row.clone()
+        incorrect[true_class] = 0
+        incorrect_class = int(incorrect.argmax().item())
+        incorrect_count = int(incorrect[incorrect_class].item())
+        confusion_metrics.append({
+            'epoch': epoch,
+            'true_class': class_names[true_class],
+            'most_common_incorrect_class': class_names[incorrect_class],
+            'percentage_of_true_class': (
+                100.0 * incorrect_count / total if total else 0.0
+            ),
+            'true_class_samples': total,
+            'incorrect_predictions': int(row.sum().item() - row[true_class].item()),
+        })
+    pd.DataFrame(confusion_metrics).to_csv(
+        os.path.join(LOG_DIR, 'adversarial_confusion_by_class.csv'),
+        index=False,
+    )
     
     if eval_adv_acc >= old_score[1]:
         old_score[0], old_score[1] = test_acc, eval_adv_acc

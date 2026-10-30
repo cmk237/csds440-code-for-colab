@@ -145,6 +145,27 @@ class WATrainer(Trainer):
         acc /= len(dataloader)
         return acc
 
+    def eval_adversarial_confusion(self, dataloader):
+        """
+        Count adversarial predictions by true and predicted class.
+        """
+        num_classes = 10
+        confusion = torch.zeros((num_classes, num_classes), dtype=torch.long)
+        self.wa_model.eval()
+
+        for x, y in dataloader:
+            x, y = x.to(device), y.to(device)
+            with ctx_noparamgrad_and_eval(self.wa_model):
+                x_adv, _ = self.eval_attack.perturb(x, y)
+            predictions = self.wa_model(x_adv).argmax(dim=1)
+            indices = y * num_classes + predictions
+            confusion += torch.bincount(
+                indices,
+                minlength=num_classes * num_classes,
+            ).reshape(num_classes, num_classes).cpu()
+
+        return confusion
+
 
     def save_model(self, path):
         """
