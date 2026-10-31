@@ -17,8 +17,8 @@ def l2_norm(x):
     return squared_l2_norm(x).sqrt()
 
 
-def trades_loss(model, x_natural, y, optimizer, step_size=0.003, epsilon=0.031, perturb_steps=10, beta=1.0, 
-                attack='linf-pgd', label_smoothing=0.1):
+def trades_loss(model, x_natural, y, optimizer, step_size=0.003, epsilon=0.031, perturb_steps=10, beta=1.0,
+                attack='linf-pgd', label_smoothing=0.1, sample_weights=None):
     """
     TRADES training (Zhang et al, 2019).
     """
@@ -83,8 +83,13 @@ def trades_loss(model, x_natural, y, optimizer, step_size=0.003, epsilon=0.031, 
     logits_natural = model(x_natural)
     logits_adv = model(x_adv)
     loss_natural = criterion_ce(logits_natural, y)
-    loss_robust = (1.0 / batch_size) * criterion_kl(F.log_softmax(logits_adv, dim=1),
-                                                    F.softmax(logits_natural, dim=1))
+    robust_terms = criterion_kl(
+        F.log_softmax(logits_adv, dim=1),
+        F.softmax(logits_natural, dim=1),
+    ).sum(dim=1)
+    if sample_weights is not None:
+        robust_terms = robust_terms * sample_weights.square()
+    loss_robust = robust_terms.sum() / batch_size
     loss = loss_natural + beta * loss_robust
     
     batch_metrics = {'loss': loss.item(), 'clean_acc': accuracy(y, logits_natural.detach()), 

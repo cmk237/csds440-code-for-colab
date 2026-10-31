@@ -110,14 +110,17 @@ class Trainer(object):
         self.model.train()
         
         for data in tqdm(dataloader, desc='Epoch {}: '.format(epoch), disable=not verbose):
-            x, y = data
+            x, y = data[:2]
+            sample_weights = data[2].to(device) if len(data) == 3 else None
             x, y = x.to(device), y.to(device)
             
             if adversarial:
                 if self.params.beta is not None and self.params.mart:
                     loss, batch_metrics = self.mart_loss(x, y, beta=self.params.beta)
                 elif self.params.beta is not None:
-                    loss, batch_metrics = self.trades_loss(x, y, beta=self.params.beta)
+                    loss, batch_metrics = self.trades_loss(
+                        x, y, beta=self.params.beta, sample_weights=sample_weights
+                    )
                 else:
                     loss, batch_metrics = self.adversarial_loss(x, y)
             else:
@@ -176,13 +179,14 @@ class Trainer(object):
         return loss, batch_metrics
     
     
-    def trades_loss(self, x, y, beta):
+    def trades_loss(self, x, y, beta, sample_weights=None):
         """
         TRADES training.
         """
-        loss, batch_metrics = trades_loss(self.model, x, y, self.optimizer, step_size=self.params.attack_step, 
+        loss, batch_metrics = trades_loss(self.model, x, y, self.optimizer, step_size=self.params.attack_step,
                                           epsilon=self.params.attack_eps, perturb_steps=self.params.attack_iter, 
-                                          beta=beta, attack=self.params.attack)
+                                          beta=beta, attack=self.params.attack,
+                                          sample_weights=sample_weights)
         return loss, batch_metrics  
 
     

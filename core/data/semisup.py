@@ -30,7 +30,8 @@ class SemiSupervisedDataset(torch.utils.data.Dataset):
     A dataset with auxiliary pseudo-labeled data.
     """
     def __init__(self, base_dataset='cifar10', take_amount=None, take_amount_seed=13, aux_data_filename=None, 
-                 add_aux_labels=False, aux_take_amount=None, train=False, validation=False, **kwargs):
+                 add_aux_labels=False, aux_take_amount=None, train=False, validation=False,
+                 use_logit_prob=False, **kwargs):
 
         self.base_dataset = base_dataset
         self.load_base_dataset(train, **kwargs)
@@ -40,6 +41,8 @@ class SemiSupervisedDataset(torch.utils.data.Dataset):
             self.dataset.targets = self.dataset.targets[1024:]
         
         self.train = train
+        self.use_logit_prob = use_logit_prob
+        self.sample_weights = np.ones(len(self.targets), dtype=np.float32)
 
         if self.train:
             if take_amount is not None:
@@ -63,11 +66,18 @@ class SemiSupervisedDataset(torch.utils.data.Dataset):
                         aux = pickle.load(f)
                     aux_data = aux['data']
                     aux_targets = aux['extrapolated_targets']
+                    aux_confidence = None
                 else:
                     # for data from Rebuffi et al, 2021.
                     aux = np.load(aux_path)
                     aux_data = aux['image']
                     aux_targets = aux['label']
+                    aux_confidence = aux['confidence'] if 'confidence' in aux else None
+                    if use_logit_prob and aux_confidence is None:
+                        raise KeyError(
+                            "Auxiliary data must contain a 'confidence' array "
+                            "when --use-logit-prob is true."
+                        )
                 
                 orig_len = len(self.data)
 
@@ -79,8 +89,16 @@ class SemiSupervisedDataset(torch.utils.data.Dataset):
 
                     aux_data = aux_data[take_inds]
                     aux_targets = aux_targets[take_inds]
+                    if aux_confidence is not None:
+                        aux_confidence = aux_confidence[take_inds]
 
                 self.data = np.concatenate((self.data, aux_data), axis=0)
+                if aux_confidence is None:
+                    aux_confidence = np.ones(len(aux_data), dtype=np.float32)
+                self.sample_weights = np.concatenate(
+                    (self.sample_weights, aux_confidence.astype(np.float32)),
+                    axis=0,
+                )
 
                 if not add_aux_labels:
                     self.targets.extend([-1] * len(aux_data))
@@ -116,7 +134,11 @@ class SemiSupervisedDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, item):
         self.dataset.labels = self.targets
-        return self.dataset[item]
+        sample = self.dataset[item]
+        if self.use_logit_prob:
+            image, target = sample
+            return image, target, self.sample_weights[item]
+        return sample
     
     
 class SemiSupervisedSampler(torch.utils.data.Sampler):
