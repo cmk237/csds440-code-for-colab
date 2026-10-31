@@ -59,6 +59,8 @@ def parser_train():
                         help='Use hard false-class pair weighting for clean loss.')
     parser.add_argument('--hard-pair-beta', type=float, default=0.2,
                         help='Offset used in hard false-class pair weights.')
+    parser.add_argument('--hard-pair-scale', type=float, default=5.0,
+                        help='Cosine-logit scale for hard-pair clean loss.')
     parser.add_argument('--hard-pair-consistency-weight', type=float, default=0.2,
                         help='Weight for clean/adversarial log-probability consistency.')
     

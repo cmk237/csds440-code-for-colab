@@ -124,6 +124,7 @@ class Trainer(object):
                         auxiliary_mask=auxiliary_mask,
                         hard_pair_clean_weight=self.params.hard_pair_clean_weight,
                         hard_pair_beta=self.params.hard_pair_beta,
+                        hard_pair_scale=self.params.hard_pair_scale,
                         hard_pair_consistency_weight=self.params.hard_pair_consistency_weight,
                     )
                 else:
@@ -186,7 +187,7 @@ class Trainer(object):
     
     def trades_loss(self, x, y, beta, sample_weights=None, auxiliary_mask=None,
                     hard_pair_clean_weight=False, hard_pair_beta=0.2,
-                    hard_pair_consistency_weight=0.2):
+                    hard_pair_scale=5.0, hard_pair_consistency_weight=0.2):
         """
         TRADES training.
         """
@@ -197,6 +198,7 @@ class Trainer(object):
                                           auxiliary_mask=auxiliary_mask,
                                           hard_pair_clean_weight=hard_pair_clean_weight,
                                           hard_pair_beta=hard_pair_beta,
+                                          hard_pair_scale=hard_pair_scale,
                                           hard_pair_consistency_weight=hard_pair_consistency_weight)
         return loss, batch_metrics  
 

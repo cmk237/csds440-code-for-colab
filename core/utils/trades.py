@@ -24,27 +24,24 @@ def _resnet_logits_features(model, x):
     features = backbone.forward_features(container[0](x) if len(container) > 1 else x)
     return backbone.linear(features), features, backbone.linear.weight
 
-def _hard_pair_nce(logits, features, classifier_weight, targets, mask, offset):
+def _hard_pair_nce(features, classifier_weight, targets, mask, scale, offset):
     normalized_features = F.normalize(features, dim=1)
     normalized_weights = F.normalize(classifier_weight, dim=1)
     cosine = normalized_features @ normalized_weights.t()
-    false_mask = torch.ones_like(logits, dtype=torch.bool)
-    false_mask.scatter_(1, targets.unsqueeze(1), False)
-    pair_weight = torch.clamp(cosine + offset, min=1e-6)
-    weighted_false_logits = logits + pair_weight.log()
-    weighted_false_logits = weighted_false_logits.masked_fill(~false_mask, -torch.inf)
-    denominator = torch.logsumexp(
-        torch.cat((logits.gather(1, targets.unsqueeze(1)), weighted_false_logits), dim=1),
-        dim=1,
-    )
-    pairwise_loss = denominator - logits.gather(1, targets.unsqueeze(1)).squeeze(1)
-    return torch.where(mask, pairwise_loss, F.cross_entropy(logits, targets, reduction='none'))
+    cos_target = cosine.gather(1, targets.unsqueeze(1))
+    g_true = 1.0 - cos_target + offset
+    g_false = cosine + offset
+    modulation = g_false.clone()
+    modulation.scatter_(1, targets.unsqueeze(1), g_true)
+    scaled_logits = scale * cosine * modulation
+    hard_loss = F.cross_entropy(scaled_logits, targets, reduction='none')
+    return hard_loss, mask
 
 
 def trades_loss(model, x_natural, y, optimizer, step_size=0.003, epsilon=0.031, perturb_steps=10, beta=1.0,
                 attack='linf-pgd', sample_weights=None, auxiliary_mask=None,
                 hard_pair_clean_weight=False, hard_pair_beta=0.2,
-                hard_pair_consistency_weight=0.2):
+                hard_pair_scale=5.0, hard_pair_consistency_weight=0.2):
     """
     TRADES training (Zhang et al, 2019).
     """
@@ -112,9 +109,12 @@ def trades_loss(model, x_natural, y, optimizer, step_size=0.003, epsilon=0.031, 
     if hard_pair_clean_weight:
         _, clean_features, classifier_weight = _resnet_logits_features(model, x_natural)
         clean_mask = ~auxiliary_mask if auxiliary_mask is not None else torch.ones_like(y, dtype=torch.bool)
-        loss_natural = _hard_pair_nce(
-            logits_natural, clean_features, classifier_weight, y, clean_mask, hard_pair_beta
-        ).mean()
+        hard_loss, _ = _hard_pair_nce(
+            clean_features, classifier_weight, y, clean_mask,
+            hard_pair_scale, hard_pair_beta
+        )
+        standard_loss = F.cross_entropy(logits_natural, y, reduction='none')
+        loss_natural = torch.where(clean_mask, hard_loss, standard_loss).mean()
     else:
         loss_natural = F.cross_entropy(logits_natural, y)
     robust_terms = criterion_kl(
@@ -125,10 +125,10 @@ def trades_loss(model, x_natural, y, optimizer, step_size=0.003, epsilon=0.031, 
         robust_terms = robust_terms * sample_weights.square()
     loss_robust = robust_terms.sum() / batch_size
     if hard_pair_clean_weight:
-        consistency = (
-            F.log_softmax(logits_natural, dim=1)
-            - F.log_softmax(logits_adv, dim=1)
-        ).square().mean(dim=1).mean()
+        p_clean = F.softmax(logits_natural, dim=1)
+        p_adv = F.softmax(logits_adv, dim=1)
+        log_ratio = torch.log(p_clean + 1e-12) - torch.log(p_adv + 1e-12)
+        consistency = (p_clean * log_ratio).square().sum(dim=1).mean()
         loss = loss_natural + beta * loss_robust + hard_pair_consistency_weight * consistency
     else:
         loss = loss_natural + beta * loss_robust
