@@ -31,7 +31,7 @@ class SemiSupervisedDataset(torch.utils.data.Dataset):
     """
     def __init__(self, base_dataset='cifar10', take_amount=None, take_amount_seed=13, aux_data_filename=None, 
                  add_aux_labels=False, aux_take_amount=None, train=False, validation=False,
-                 use_logit_prob=False, **kwargs):
+                 use_logit_prob=False, hard_pair_clean_weight=False, **kwargs):
 
         self.base_dataset = base_dataset
         self.load_base_dataset(train, **kwargs)
@@ -42,7 +42,9 @@ class SemiSupervisedDataset(torch.utils.data.Dataset):
         
         self.train = train
         self.use_logit_prob = use_logit_prob
+        self.hard_pair_clean_weight = hard_pair_clean_weight
         self.sample_weights = np.ones(len(self.targets), dtype=np.float32)
+        self.is_auxiliary = np.zeros(len(self.targets), dtype=np.bool_)
 
         if self.train:
             if take_amount is not None:
@@ -99,6 +101,10 @@ class SemiSupervisedDataset(torch.utils.data.Dataset):
                     (self.sample_weights, aux_confidence.astype(np.float32)),
                     axis=0,
                 )
+                self.is_auxiliary = np.concatenate(
+                    (self.is_auxiliary, np.ones(len(aux_data), dtype=np.bool_)),
+                    axis=0,
+                )
 
                 if not add_aux_labels:
                     self.targets.extend([-1] * len(aux_data))
@@ -135,9 +141,9 @@ class SemiSupervisedDataset(torch.utils.data.Dataset):
     def __getitem__(self, item):
         self.dataset.labels = self.targets
         sample = self.dataset[item]
-        if self.use_logit_prob:
+        if self.use_logit_prob or self.hard_pair_clean_weight:
             image, target = sample
-            return image, target, self.sample_weights[item]
+            return image, target, self.sample_weights[item], self.is_auxiliary[item]
         return sample
     
     

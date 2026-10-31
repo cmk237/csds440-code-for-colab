@@ -47,7 +47,7 @@ def get_data_info(data_dir):
 
 def load_data(data_dir, batch_size=256, batch_size_test=256, num_workers=4, use_augmentation=False, shuffle_train=True, 
               aux_data_filename=None, aux_take_amount=None, unsup_fraction=None,
-              use_logit_prob=False, validation=False):
+              use_logit_prob=False, hard_pair_clean_weight=False, validation=False):
     """
     Returns train, test datasets and dataloaders.
     Arguments:
@@ -70,6 +70,7 @@ def load_data(data_dir, batch_size=256, batch_size_test=256, num_workers=4, use_
         train_dataset, test_dataset, val_dataset = load_dataset_fn(data_dir=data_dir, use_augmentation=use_augmentation, 
                                                                    aux_data_filename=aux_data_filename, aux_take_amount=aux_take_amount,
                                                                    use_logit_prob=use_logit_prob,
+                                                                   hard_pair_clean_weight=hard_pair_clean_weight,
                                                                    validation=True)
     else:
         train_dataset, test_dataset = load_dataset_fn(data_dir=data_dir, use_augmentation=use_augmentation)

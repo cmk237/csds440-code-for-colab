@@ -67,7 +67,8 @@ seed(args.seed)
 train_dataset, test_dataset, eval_dataset, train_dataloader, test_dataloader, eval_dataloader = load_data(
     DATA_DIR, BATCH_SIZE, BATCH_SIZE_VALIDATION, use_augmentation=args.augment, shuffle_train=True, 
     aux_data_filename=args.aux_data_filename, aux_take_amount=args.aux_take_amount,
-    unsup_fraction=args.unsup_fraction, use_logit_prob=args.use_logit_prob, validation=True
+    unsup_fraction=args.unsup_fraction, use_logit_prob=args.use_logit_prob,
+    hard_pair_clean_weight=args.hard_pair_clean_weight, validation=True
 )
 del train_dataset, test_dataset, eval_dataset
 

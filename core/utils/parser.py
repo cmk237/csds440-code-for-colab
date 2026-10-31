@@ -55,6 +55,12 @@ def parser_train():
                         default='/cluster/scratch/rarade/cifar10s/ti_500K_pseudo_labeled.pickle')
     parser.add_argument('--use-logit-prob', type=str2bool, default=False,
                         help='Weight auxiliary adversarial loss by teacher confidence squared.')
+    parser.add_argument('--hard-pair-clean-weight', type=str2bool, default=False,
+                        help='Use hard false-class pair weighting for clean loss.')
+    parser.add_argument('--hard-pair-beta', type=float, default=0.2,
+                        help='Offset used in hard false-class pair weights.')
+    parser.add_argument('--hard-pair-consistency-weight', type=float, default=0.2,
+                        help='Weight for clean/adversarial log-probability consistency.')
     
     parser.add_argument('--seed', type=int, default=1, help='Random seed.')
     parser.add_argument(

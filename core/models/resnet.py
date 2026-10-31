@@ -55,7 +55,7 @@ class BasicBlock(nn.Module):
                 nn.BatchNorm2d(self.expansion * planes)
             )
 
-    def forward(self, x):
+    def forward_features(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
         out += self.shortcut(x)
@@ -135,6 +135,10 @@ class ResNet(nn.Module):
         out = self.layer4(out)
         out = F.avg_pool2d(out, 4)
         out = out.view(out.size(0), -1)
+        return out
+
+    def forward(self, x):
+        out = self.forward_features(x)
         out = self.linear(out)
         return out
 

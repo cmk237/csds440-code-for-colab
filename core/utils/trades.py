@@ -14,9 +14,37 @@ def squared_l2_norm(x):
 def l2_norm(x):
     return squared_l2_norm(x).sqrt()
 
+def _resnet_logits_features(model, x):
+    if not isinstance(model, torch.nn.DataParallel):
+        raise TypeError('Hard-pair weighting requires a DataParallel ResNet model.')
+    container = model.module
+    backbone = container[-1]
+    if not hasattr(backbone, 'forward_features') or not hasattr(backbone, 'linear'):
+        raise TypeError('Hard-pair weighting supports only ResNet-family models.')
+    features = backbone.forward_features(container[0](x) if len(container) > 1 else x)
+    return backbone.linear(features), features, backbone.linear.weight
+
+def _hard_pair_nce(logits, features, classifier_weight, targets, mask, offset):
+    normalized_features = F.normalize(features, dim=1)
+    normalized_weights = F.normalize(classifier_weight, dim=1)
+    cosine = normalized_features @ normalized_weights.t()
+    false_mask = torch.ones_like(logits, dtype=torch.bool)
+    false_mask.scatter_(1, targets.unsqueeze(1), False)
+    pair_weight = torch.clamp(cosine + offset, min=1e-6)
+    weighted_false_logits = logits + pair_weight.log()
+    weighted_false_logits = weighted_false_logits.masked_fill(~false_mask, -torch.inf)
+    denominator = torch.logsumexp(
+        torch.cat((logits.gather(1, targets.unsqueeze(1)), weighted_false_logits), dim=1),
+        dim=1,
+    )
+    pairwise_loss = denominator - logits.gather(1, targets.unsqueeze(1)).squeeze(1)
+    return torch.where(mask, pairwise_loss, F.cross_entropy(logits, targets, reduction='none'))
+
 
 def trades_loss(model, x_natural, y, optimizer, step_size=0.003, epsilon=0.031, perturb_steps=10, beta=1.0,
-                attack='linf-pgd', sample_weights=None):
+                attack='linf-pgd', sample_weights=None, auxiliary_mask=None,
+                hard_pair_clean_weight=False, hard_pair_beta=0.2,
+                hard_pair_consistency_weight=0.2):
     """
     TRADES training (Zhang et al, 2019).
     """
@@ -81,7 +109,14 @@ def trades_loss(model, x_natural, y, optimizer, step_size=0.003, epsilon=0.031, 
     # calculate robust loss
     logits_natural = model(x_natural)
     logits_adv = model(x_adv)
-    loss_natural = F.cross_entropy(logits_natural, y)
+    if hard_pair_clean_weight:
+        _, clean_features, classifier_weight = _resnet_logits_features(model, x_natural)
+        clean_mask = ~auxiliary_mask if auxiliary_mask is not None else torch.ones_like(y, dtype=torch.bool)
+        loss_natural = _hard_pair_nce(
+            logits_natural, clean_features, classifier_weight, y, clean_mask, hard_pair_beta
+        ).mean()
+    else:
+        loss_natural = F.cross_entropy(logits_natural, y)
     robust_terms = criterion_kl(
         F.log_softmax(logits_adv, dim=1),
         F.softmax(logits_natural, dim=1),
@@ -89,7 +124,14 @@ def trades_loss(model, x_natural, y, optimizer, step_size=0.003, epsilon=0.031, 
     if sample_weights is not None:
         robust_terms = robust_terms * sample_weights.square()
     loss_robust = robust_terms.sum() / batch_size
-    loss = loss_natural + beta * loss_robust
+    if hard_pair_clean_weight:
+        consistency = (
+            F.log_softmax(logits_natural, dim=1)
+            - F.log_softmax(logits_adv, dim=1)
+        ).square().mean(dim=1).mean()
+        loss = loss_natural + beta * loss_robust + hard_pair_consistency_weight * consistency
+    else:
+        loss = loss_natural + beta * loss_robust
     
     batch_metrics = {'loss': loss.item(), 'clean_acc': accuracy(y, logits_natural.detach()), 
                      'adversarial_acc': accuracy(y, logits_adv.detach())}

@@ -86,6 +86,7 @@ class WATrainer(Trainer):
             
             x, y = data[:2]
             sample_weights = data[2].to(device) if len(data) == 3 else None
+            auxiliary_mask = data[3].to(device).bool() if len(data) == 4 else None
             x, y = x.to(device), y.to(device)
             
             if adversarial:
@@ -93,7 +94,11 @@ class WATrainer(Trainer):
                     loss, batch_metrics = self.mart_loss(x, y, beta=self.params.beta)
                 elif self.params.beta is not None:
                     loss, batch_metrics = self.trades_loss(
-                        x, y, beta=self.params.beta, sample_weights=sample_weights
+                        x, y, beta=self.params.beta, sample_weights=sample_weights,
+                        auxiliary_mask=auxiliary_mask,
+                        hard_pair_clean_weight=self.params.hard_pair_clean_weight,
+                        hard_pair_beta=self.params.hard_pair_beta,
+                        hard_pair_consistency_weight=self.params.hard_pair_consistency_weight,
                     )
                 else:
                     loss, batch_metrics = self.adversarial_loss(x, y)
@@ -119,14 +124,20 @@ class WATrainer(Trainer):
         return dict(metrics.mean())
     
     
-    def trades_loss(self, x, y, beta, sample_weights=None):
+    def trades_loss(self, x, y, beta, sample_weights=None, auxiliary_mask=None,
+                    hard_pair_clean_weight=False, hard_pair_beta=0.2,
+                    hard_pair_consistency_weight=0.2):
         """
         TRADES training.
         """
         loss, batch_metrics = trades_loss(self.model, x, y, self.optimizer, step_size=self.params.attack_step,
                                           epsilon=self.params.attack_eps, perturb_steps=self.params.attack_iter, 
                                           beta=beta, attack=self.params.attack,
-                                          sample_weights=sample_weights)
+                                          sample_weights=sample_weights,
+                                          auxiliary_mask=auxiliary_mask,
+                                          hard_pair_clean_weight=hard_pair_clean_weight,
+                                          hard_pair_beta=hard_pair_beta,
+                                          hard_pair_consistency_weight=hard_pair_consistency_weight)
         return loss, batch_metrics  
 
     
