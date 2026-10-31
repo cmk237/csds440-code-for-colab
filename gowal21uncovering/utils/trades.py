@@ -24,7 +24,7 @@ def trades_loss(model, x_natural, y, optimizer, step_size=0.003, epsilon=0.031, 
     """
   
     criterion_ce = SmoothCrossEntropyLoss(reduction='mean', smoothing=label_smoothing)
-    criterion_kl = nn.KLDivLoss(reduction='sum')
+    criterion_kl = nn.KLDivLoss(reduction='none')
     model.train()
     track_bn_stats(model, False)
     batch_size = len(x_natural)
@@ -37,7 +37,9 @@ def trades_loss(model, x_natural, y, optimizer, step_size=0.003, epsilon=0.031, 
         for _ in range(perturb_steps):
             x_adv.requires_grad_()
             with torch.enable_grad():
-                loss_kl = criterion_kl(F.log_softmax(model(x_adv), dim=1), p_natural)
+                loss_kl = criterion_kl(
+                    F.log_softmax(model(x_adv), dim=1), p_natural
+                ).sum()
             grad = torch.autograd.grad(loss_kl, [x_adv])[0]
             x_adv = x_adv.detach() + step_size * torch.sign(grad.detach())
             x_adv = torch.min(torch.max(x_adv, x_natural - epsilon), x_natural + epsilon)
@@ -56,7 +58,9 @@ def trades_loss(model, x_natural, y, optimizer, step_size=0.003, epsilon=0.031, 
             # optimize
             optimizer_delta.zero_grad()
             with torch.enable_grad():
-                loss = (-1) * criterion_kl(F.log_softmax(model(adv), dim=1), p_natural)
+                loss = (-1) * criterion_kl(
+                    F.log_softmax(model(adv), dim=1), p_natural
+                ).sum()
             loss.backward(retain_graph=True)
             # renorming gradient
             grad_norms = delta.grad.view(batch_size, -1).norm(p=2, dim=1)
