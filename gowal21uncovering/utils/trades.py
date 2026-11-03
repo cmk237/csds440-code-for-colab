@@ -120,7 +120,7 @@ def trades_loss(model, x_natural, y, optimizer, step_size=0.003, epsilon=0.031, 
         standard_loss = criterion_ce(logits_natural, y)
         loss_natural = torch.where(clean_mask, hard_loss, standard_loss).mean()
     else:
-        loss_natural = criterion_ce(logits_natural, y)
+        loss_natural = criterion_ce(logits_natural, y).mean()
     robust_terms = criterion_kl(
         F.log_softmax(logits_adv, dim=1),
         F.softmax(logits_natural, dim=1),
